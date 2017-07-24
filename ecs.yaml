@@ -4,13 +4,17 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: |
   ECS Cluster
 
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t2.nano
+
 Mappings:
   AWSRegionToAMI:
     us-east-1:
       AMI: ami-6df8fe7a
     us-west-2:
       AMI: ami-a2ca61c2
-
 
 Resources:
   Cluster:
