@@ -1,0 +1,47 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Transform: "AWS::Serverless-2016-10-31"
+
+Description: |
+  ECS Cluster
+
+Mappings:
+  AWSRegionToAMI:
+    us-east-1:
+      AMI: ami-6df8fe7a
+    us-west-2:
+      AMI: ami-a2ca61c2
+
+
+Resources:
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref AWS::StackName
+
+  LaunchConfiguration:
+      Type: AWS::AutoScaling::LaunchConfiguration
+      Properties:
+        ImageId: !FindInMap [ AWSRegionToAMI, !Ref "AWS::Region", AMI ]
+        InstanceType: !Ref InstanceType
+        IamInstanceProfile: !Ref InstanceProfile
+        SecurityGroups:
+          - !Ref SecurityGroup
+        UserData:
+          "Fn::Base64": !Sub |
+            #!/usr/bin/env bash
+            set -o errexit
+
+            yum install -y aws-cfn-bootstrap
+            /opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource LaunchConfiguration
+            /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource AutoScalingGroup
+
+      Metadata:
+        AWS::CloudFormation::Init:
+          config:
+            commands:
+              01_add_instance_to_cluster:
+                  command: !Sub echo ECS_CLUSTER=${Cluster} >> /etc/ecs/ecs.config
+
+Outputs:
+  ClusterName:
+      Value: !Ref Cluster
