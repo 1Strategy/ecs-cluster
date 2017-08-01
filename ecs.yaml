@@ -26,12 +26,16 @@ Parameters:
     Type: Number
     Default: 1
 
+  KeyName:
+    Description: SSH Keyname for access to ECS Cluster hosts
+    Type: AWS::EC2::KeyPair::KeyName
+
 Mappings:
   AWSRegionToAMI:
     us-east-1:
-      AMI: ami-6df8fe7a
+      AMI: ami-04351e12
     us-west-2:
-      AMI: ami-a2ca61c2
+      AMI: ami-57d9cd2e
 
 Resources:
   AlbSecurityGroup:
@@ -97,10 +101,14 @@ Resources:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
       GroupDescription: !Sub ${AWS::StackName}-EcsHosts
+      VpcId: !Ref VpcId
       SecurityGroupIngress:
         - SourceSecurityGroupId: !Ref AlbSecurityGroup
           IpProtocol: -1
-      VpcId: !Ref VpcId
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
 
   ECSRole:
     Type: AWS::IAM::Role
@@ -137,6 +145,7 @@ Resources:
         ImageId: !FindInMap [ AWSRegionToAMI, !Ref "AWS::Region", AMI ]
         InstanceType: !Ref InstanceType
         IamInstanceProfile: !Ref InstanceProfile
+        KeyName: !Ref KeyName
         SecurityGroups:
           - !Ref EcsHostSecurityGroup
         UserData:
@@ -149,7 +158,6 @@ Resources:
             yum -yq install aws-cfn-bootstrap
             /opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource LaunchConfiguration
             /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource AutoScalingGroup
-
       Metadata:
         AWS::CloudFormation::Init:
           config:
@@ -169,15 +177,15 @@ Resources:
         - Key: Name
           Value: !Sub ${AWS::StackName} - ECS Host
           PropagateAtLaunch: true
-    CreationPolicy:
-      ResourceSignal:
-        Timeout: PT15M
-    UpdatePolicy:
-      AutoScalingRollingUpdate:
-        MinInstancesInService: 1
-        MaxBatchSize: 1
-        PauseTime: PT15M
-        WaitOnResourceSignals: true
+    # CreationPolicy:
+    #   ResourceSignal:
+    #     Timeout: PT15M
+    # UpdatePolicy:
+    #   AutoScalingRollingUpdate:
+    #     MinInstancesInService: 1
+    #     MaxBatchSize: 1
+    #     PauseTime: PT15M
+    #     WaitOnResourceSignals: true
 
 Outputs:
   ClusterName:
